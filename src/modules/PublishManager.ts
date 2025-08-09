@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 import { PackageInfo } from '../types/index.js';
+import { ConfigManager } from '../utils/ConfigManager.js';
 import chalk from 'chalk';
 
 const execCommand = (command: string, args: string[]): Promise<void> => {
@@ -24,13 +25,32 @@ const execCommand = (command: string, args: string[]): Promise<void> => {
 };
 
 export class PublishManager {
+  private configManager = new ConfigManager();
+
   async publish(packageInfo: PackageInfo, version: string): Promise<void> {
+    // Load current configuration
+    const config = await this.configManager.loadConfig();
+    const summary = await this.configManager.getConfigSummary();
+
+    // Display configuration being used
+    console.log(chalk.blue('🔧 Using configuration:'));
+    console.log(`├── Registry: ${chalk.green(summary.registry.value)} ${chalk.gray(`(${summary.registry.source})`)}`);
+    if (summary.authToken) {
+      console.log(`└── Auth token: ${chalk.yellow(summary.authToken.value)} ${chalk.gray(`(${summary.authToken.source})`)}`);
+    } else {
+      console.log(`└── Auth token: ${chalk.red('not configured')}`);
+    }
+    console.log();
+
     // Check for existing .npmrc
     const npmrcPath = path.join(process.cwd(), '.npmrc');
     const hasNpmrc = await fs.pathExists(npmrcPath);
 
-    if (!hasNpmrc) {
+    if (!hasNpmrc && !config.authToken) {
       await this.configureRegistry();
+    } else if (!hasNpmrc && config.authToken) {
+      // Create temporary .npmrc with our config
+      await this.createTempNpmrc(config);
     }
 
     // Run build if build script exists
@@ -52,6 +72,16 @@ export class PublishManager {
 
     // Publish to npm
     await execCommand('npm', ['publish']);
+  }
+
+  private async createTempNpmrc(config: { registry: string; authToken?: string }): Promise<void> {
+    const npmrcContent = [
+      `registry=${config.registry}`,
+      config.authToken ? `${this.getTokenLine(config.registry)}=${config.authToken}` : ''
+    ].filter(Boolean).join('\n');
+
+    await fs.writeFile(path.join(process.cwd(), '.npmrc'), npmrcContent);
+    console.log(chalk.blue('📝 Created temporary .npmrc file'));
   }
 
   private async configureRegistry(): Promise<void> {
