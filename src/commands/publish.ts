@@ -17,30 +17,28 @@ export async function publishCommand(options: PublishOptions) {
   const publishManager = new PublishManager();
 
   try {
-    const tasks = new Listr([
-      {
-        title: '🔍 Detecting changes',
-        task: async (ctx) => {
-          ctx.gitStatus = await changeDetector.checkGitStatus();
-          ctx.packageInfo = await changeDetector.getPackageInfo();
-        },
-      },
-      {
-        title: '📝 Managing commits',
-        task: async (ctx) => {
-          await commitManager.handleCommits(ctx.gitStatus);
-        },
-        skip: (ctx) => !ctx.gitStatus.hasUncommitted,
-      },
-      {
-        title: '🏷️ Bumping version',
-        task: async (ctx) => {
-          ctx.newVersion = await versionManager.bumpVersion(
-            ctx.packageInfo,
-            options.version
-          );
-        },
-      },
+    // Step 1: Detect changes and get package info
+    spinner.text = 'Detecting changes...';
+    const gitStatus = await changeDetector.checkGitStatus();
+    const packageInfo = await changeDetector.getPackageInfo();
+    spinner.succeed('🔍 Changes detected');
+
+    // Step 2: Handle commits if needed
+    if (gitStatus.hasUncommitted) {
+      spinner.text = 'Handling uncommitted changes...';
+      await commitManager.handleCommits(gitStatus);
+      spinner.succeed('📝 Commits managed');
+    } else {
+      console.log('📝 No uncommitted changes found');
+    }
+
+    // Step 3: Get version bump type (interactive)
+    spinner.stop();
+    const newVersion = await versionManager.bumpVersion(packageInfo, options.version);
+    console.log(chalk.green(`🏷️ Version bumped to ${newVersion}`));
+
+    // Step 4: Run remaining tasks with Listr2
+    const finalTasks = new Listr([
       {
         title: '🔨 Building project',
         task: async () => {
@@ -49,15 +47,14 @@ export async function publishCommand(options: PublishOptions) {
       },
       {
         title: '📦 Publishing package',
-        task: async (ctx) => {
-          await publishManager.publish(ctx.packageInfo, ctx.newVersion);
+        task: async () => {
+          await publishManager.publish(packageInfo, newVersion);
         },
         skip: () => !!options.dryRun,
       },
     ]);
 
-    spinner.stop();
-    await tasks.run();
+    await finalTasks.run();
 
     console.log(chalk.green('✅ Package published successfully!'));
   } catch (error) {
