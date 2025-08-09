@@ -33,39 +33,18 @@ function maskToken(token: string): string {
 }
 
 export class ConfigManager {
-  private projectConfigPath: string;
   private globalConfigPath: string;
 
   constructor() {
-    this.projectConfigPath = path.join(process.cwd(), '.qkdpxrc');
     this.globalConfigPath = path.join(os.homedir(), '.qkdpx', 'config.json');
-  }
-
-  getProjectConfigPath(): string {
-    return this.projectConfigPath;
   }
 
   getGlobalConfigPath(): string {
     return this.globalConfigPath;
   }
 
-  async projectConfigExists(): Promise<boolean> {
-    return await fs.pathExists(this.projectConfigPath);
-  }
-
   async globalConfigExists(): Promise<boolean> {
     return await fs.pathExists(this.globalConfigPath);
-  }
-
-  async loadProjectConfig(): Promise<Partial<Config>> {
-    if (await this.projectConfigExists()) {
-      try {
-        return await fs.readJson(this.projectConfigPath);
-      } catch (error) {
-        console.warn('Failed to parse .qkdpxrc, ignoring project config');
-      }
-    }
-    return {};
   }
 
   async loadGlobalConfig(): Promise<Partial<Config>> {
@@ -90,37 +69,27 @@ export class ConfigManager {
   }
 
   async loadConfig(): Promise<Config> {
-    const projectConfig = await this.loadProjectConfig();
     const globalConfig = await this.loadGlobalConfig();
 
-    // Project config takes precedence over global config
     return {
-      registry: projectConfig.registry || globalConfig.registry || DEFAULT_REGISTRY,
-      authToken: globalConfig.authToken, // Only from global config
+      registry: globalConfig.registry || DEFAULT_REGISTRY,
+      authToken: globalConfig.authToken,
     };
-  }
-
-  async saveProjectConfig(config: Partial<Config>): Promise<void> {
-    // Only save registry to project config, never auth token
-    const projectConfig = {
-      registry: config.registry || DEFAULT_REGISTRY,
-    };
-    await fs.writeJson(this.projectConfigPath, projectConfig, { spaces: 2 });
   }
 
   async saveGlobalConfig(config: Partial<Config>): Promise<void> {
     // Ensure global config directory exists
     await fs.ensureDir(path.dirname(this.globalConfigPath));
-    
+
     // Encrypt auth token before saving
-    const globalConfig: any = {
+    const globalConfig: Record<string, string> = {
       registry: config.registry || DEFAULT_REGISTRY,
     };
-    
+
     if (config.authToken) {
       globalConfig.authToken = encryptToken(config.authToken);
     }
-    
+
     await fs.writeJson(this.globalConfigPath, globalConfig, { spaces: 2 });
   }
 
@@ -128,13 +97,12 @@ export class ConfigManager {
     registry: { value: string; source: string };
     authToken: { value: string; source: string } | null;
   }> {
-    const projectConfig = await this.loadProjectConfig();
     const globalConfig = await this.loadGlobalConfig();
 
-    const registrySource = projectConfig.registry ? 'project' : globalConfig.registry ? 'global' : 'default';
-    const registry = projectConfig.registry || globalConfig.registry || DEFAULT_REGISTRY;
+    const registry = globalConfig.registry || DEFAULT_REGISTRY;
+    const registrySource = globalConfig.registry ? 'global' : 'default';
 
-    const authToken = globalConfig.authToken 
+    const authToken = globalConfig.authToken
       ? { value: maskToken(globalConfig.authToken), source: 'global' }
       : null;
 

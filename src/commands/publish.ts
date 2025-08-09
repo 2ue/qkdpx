@@ -10,20 +10,24 @@ import ora from 'ora';
 export async function publishCommand(options: PublishOptions) {
   const spinner = ora('Initializing qkdpx...').start();
 
+  // Create shared instances to avoid recreating
+  const changeDetector = new ChangeDetector();
+  const commitManager = new CommitManager();
+  const versionManager = new VersionManager();
+  const publishManager = new PublishManager();
+
   try {
     const tasks = new Listr([
       {
         title: '🔍 Detecting changes',
         task: async (ctx) => {
-          const detector = new ChangeDetector();
-          ctx.gitStatus = await detector.checkGitStatus();
-          ctx.packageInfo = await detector.getPackageInfo();
+          ctx.gitStatus = await changeDetector.checkGitStatus();
+          ctx.packageInfo = await changeDetector.getPackageInfo();
         },
       },
       {
         title: '📝 Managing commits',
         task: async (ctx) => {
-          const commitManager = new CommitManager();
           await commitManager.handleCommits(ctx.gitStatus);
         },
         skip: (ctx) => !ctx.gitStatus.hasUncommitted,
@@ -31,7 +35,6 @@ export async function publishCommand(options: PublishOptions) {
       {
         title: '🏷️ Bumping version',
         task: async (ctx) => {
-          const versionManager = new VersionManager();
           ctx.newVersion = await versionManager.bumpVersion(
             ctx.packageInfo,
             options.version
@@ -41,13 +44,12 @@ export async function publishCommand(options: PublishOptions) {
       {
         title: '🔨 Building project',
         task: async () => {
-          // TODO: Implement build verification
+          await publishManager.runBuildIfExists();
         },
       },
       {
         title: '📦 Publishing package',
         task: async (ctx) => {
-          const publishManager = new PublishManager();
           await publishManager.publish(ctx.packageInfo, ctx.newVersion);
         },
         skip: () => !!options.dryRun,

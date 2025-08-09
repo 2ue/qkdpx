@@ -34,9 +34,13 @@ export class PublishManager {
 
     // Display configuration being used
     console.log(chalk.blue('🔧 Using configuration:'));
-    console.log(`├── Registry: ${chalk.green(summary.registry.value)} ${chalk.gray(`(${summary.registry.source})`)}`);
+    console.log(
+      `├── Registry: ${chalk.green(summary.registry.value)} ${chalk.gray(`(${summary.registry.source})`)}`
+    );
     if (summary.authToken) {
-      console.log(`└── Auth token: ${chalk.yellow(summary.authToken.value)} ${chalk.gray(`(${summary.authToken.source})`)}`);
+      console.log(
+        `└── Auth token: ${chalk.yellow(summary.authToken.value)} ${chalk.gray(`(${summary.authToken.source})`)}`
+      );
     } else {
       console.log(`└── Auth token: ${chalk.red('not configured')}`);
     }
@@ -52,9 +56,6 @@ export class PublishManager {
       // Create temporary .npmrc with our config
       await this.createTempNpmrc(config);
     }
-
-    // Run build if build script exists
-    await this.runBuildIfExists();
 
     // Final confirmation
     const { confirmed } = await inquirer.prompt([
@@ -74,11 +75,18 @@ export class PublishManager {
     await execCommand('npm', ['publish']);
   }
 
-  private async createTempNpmrc(config: { registry: string; authToken?: string }): Promise<void> {
+  private async createTempNpmrc(config: {
+    registry: string;
+    authToken?: string;
+  }): Promise<void> {
     const npmrcContent = [
       `registry=${config.registry}`,
-      config.authToken ? `${this.getTokenLine(config.registry)}=${config.authToken}` : ''
-    ].filter(Boolean).join('\n');
+      config.authToken
+        ? `${this.getTokenLine(config.registry)}=${config.authToken}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     await fs.writeFile(path.join(process.cwd(), '.npmrc'), npmrcContent);
     console.log(chalk.blue('📝 Created temporary .npmrc file'));
@@ -163,7 +171,7 @@ export class PublishManager {
     }
   }
 
-  private async runBuildIfExists(): Promise<void> {
+  async runBuildIfExists(): Promise<void> {
     const packagePath = path.join(process.cwd(), 'package.json');
     const packageJson = await fs.readJson(packagePath);
 

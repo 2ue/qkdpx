@@ -20,8 +20,7 @@ program
 
 program
   .command('init')
-  .description('Initialize qkdpx configuration file')
-  .option('--global', 'initialize global configuration')
+  .description('Initialize qkdpx global configuration')
   .option('--show', 'show current configuration')
   .action(initCommand);
 
