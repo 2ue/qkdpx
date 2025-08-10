@@ -2,12 +2,9 @@ import inquirer from 'inquirer';
 import semver from 'semver';
 import fs from 'fs-extra';
 import { PackageInfo } from '../types/index.js';
-import { CommitManager } from './CommitManager.js';
 
 export class VersionManager {
-  private commitManager = new CommitManager();
-
-  async bumpVersion(
+  async selectAndUpdateVersion(
     packageInfo: PackageInfo,
     versionType?: 'patch' | 'minor' | 'major' | 'none'
   ): Promise<string> {
@@ -53,14 +50,21 @@ export class VersionManager {
       throw new Error('Failed to generate new version');
     }
 
-    // Update package.json
+    // Only update package.json, don't commit yet
     const packageJson = await fs.readJson(packageInfo.path);
     packageJson.version = newVersion;
     await fs.writeJson(packageInfo.path, packageJson, { spaces: 2 });
 
-    // Commit version change
-    await this.commitManager.commitVersion(newVersion);
-
     return newVersion;
+  }
+
+  async revertVersionChange(
+    packageInfo: PackageInfo,
+    originalVersion: string
+  ): Promise<void> {
+    // Revert package.json to original version
+    const packageJson = await fs.readJson(packageInfo.path);
+    packageJson.version = originalVersion;
+    await fs.writeJson(packageInfo.path, packageJson, { spaces: 2 });
   }
 }

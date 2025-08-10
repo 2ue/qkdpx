@@ -1,92 +1,146 @@
-# QKDPX - NPM 快速发布工具
+# QKDPX - Fast NPM Publishing Tool
 
-一个现代化的 CLI 工具，用于 npm 包的自动化发布流程，支持 git 提交、版本管理和安全的配置管理。
+A modern CLI tool for automated npm package publishing with git management, version control, and secure configuration management.
 
-## 特性
+English | [简体中文](README.zh-CN.md)
 
-- 🔍 **智能检测** - 自动检测未提交的变更和当前版本状态
-- 📝 **交互式提交** - 引导用户输入提交信息并自动提交
-- 🏷️ **语义化版本** - 支持 patch/minor/major 版本升级
-- 🔨 **自动构建** - 发布前自动运行构建脚本（如果存在 build 脚本）
-- 📦 **安全发布** - 支持多种 npm registry 和加密的 auth token 存储
-- 🔐 **统一配置** - 全局配置管理，避免配置冲突和认证问题
-- 🔐 **安全认证** - auth token 采用 AES-256-CBC 加密存储
-- ⚡ **现代化工具** - 基于 TypeScript + Node.js 构建，使用 ES 模块
+## Features
 
-## 安装
+- 🔍 **Smart Detection** - Automatically detects uncommitted changes and current version status
+- 📝 **Interactive Commits** - Optional commit handling with user-friendly prompts
+- 🏷️ **Semantic Versioning** - Support for patch/minor/major version bumps with "none" option
+- 🔨 **Auto Build** - Automatically runs build scripts before publishing (if exists)
+- 📦 **Safe Publishing** - Secure publishing with temporary .npmrc file management
+- 🔐 **Unified Configuration** - Global configuration management with encrypted auth token storage
+- 🏷️ **Post-Publish Tagging** - Creates git commits and tags only after successful publication
+- 📤 **Optional Remote Push** - Choose whether to push commits and tags to remote repository
+- ⚡ **Modern Toolchain** - Built with TypeScript + Node.js using ES modules
 
-### 本地开发安装
+## Installation
 
-```bash
-# 克隆项目
-git clone <repository-url>
-cd dpx
-
-# 安装依赖
-npm install
-
-# 构建项目
-npm run build
-
-# 本地链接（开发调试）
-npm link
-```
-
-### 从 NPM 安装（计划中）
+### Install from NPM
 
 ```bash
-# 全局安装
+# Global installation
 npm install -g qkdpx
 
-# 或在项目中使用
+# Or use with npx
 npx qkdpx publish
 ```
 
-## 使用
-
-### 基本用法
+### Development Installation
 
 ```bash
-# 发布当前项目
+# Clone the repository
+git clone <repository-url>
+cd dpx
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Link locally for development
+npm link
+```
+
+## Usage
+
+### Basic Usage
+
+```bash
+# Publish current project
 qkdpx publish
 
-# 指定版本类型
+# Specify version bump type
 qkdpx publish --version patch
 qkdpx publish --version minor
 qkdpx publish --version major
 
-# 跳过确认提示
+# Skip confirmation prompts
 qkdpx publish --skip-confirm
 
-# 试运行（不实际发布）
+# Dry run (no actual publishing)
 qkdpx publish --dry-run
 ```
 
-### 配置管理
+### Configuration Management
 
 ```bash
-# 初始化配置
+# Initialize configuration
 qkdpx init
 
-# 查看当前配置
+# Show current configuration
 qkdpx init --show
 ```
 
-### 工作流程
+## Workflow
 
-1. **🔍 变更检测** - 检查 git 工作区状态和 package.json 信息
-2. **📝 交互式提交** - 如有未提交文件，引导用户输入提交信息
-3. **🏷️ 版本升级** - 交互式选择 patch/minor/major 并更新 package.json
-4. **🔨 构建验证** - 自动运行 `npm run build`（如果存在）
-5. **📦 发布执行** - 使用配置的 registry 和 auth token 发布到 npm
+The publishing workflow follows a safe, **publish-first-then-commit** approach:
 
-每个步骤都有清晰的进度显示和错误处理。
+### 1. 🔍 **Change Detection**
+- Checks git working directory status
+- Reads current package.json information
+- Detects uncommitted changes
 
-## 配置文件
+### 2. 📝 **Commit Handling** (Optional)
+- If uncommitted changes exist, prompts user to commit or skip
+- **Skip option**: Continue publishing without committing changes
+- **Commit option**: Interactive commit message input and automatic commit
 
-### 全局配置 (`~/.qkdpx/config.json`)
+### 3. 🏷️ **Version Preparation**
+- Interactive version bump selection (patch/minor/major/none)
+- **None option**: Keep current version unchanged
+- Updates package.json **without** committing immediately
 
-qkdpx 使用单一的全局配置系统，所有配置都存储在用户主目录：
+### 4. ✅ **Final Confirmation**
+- Shows package name and target version
+- Last chance to cancel before publishing
+
+### 5. 🔨 **Build Verification**
+- Automatically runs `npm run build` if build script exists
+- Ensures code builds successfully before publishing
+
+### 6. 📦 **Package Publishing**
+- Creates temporary `.npmrc` file with registry and auth token
+- Publishes to npm with `--access public` flag
+- Automatically cleans up temporary `.npmrc` file
+- **Safe authentication**: Preserves existing `.npmrc` content if present
+
+### 7. 🏷️ **Post-Publish Git Operations** (Only after successful publish)
+- **Version Commit**: Commits package.json changes with conventional message
+- **Git Tagging**: Creates version tag (e.g., `v1.0.0`)
+- **Tag Conflict Handling**: Detects existing tags and prompts for overwrite
+- **Skip Logic**: No commit/tag if version wasn't changed
+
+### 8. 📤 **Remote Push** (Optional)
+- Prompts whether to push commits and tags to remote repository
+- **Default**: No (safer option)
+- Pushes both commits and tags if confirmed
+
+## Error Handling & Recovery
+
+### Publish Failure Recovery
+- **Automatic Rollback**: Reverts package.json changes if publishing fails
+- **No Git Pollution**: No commits or tags created on failure
+- **Clean State**: Working directory returns to pre-publish state
+
+### Tag Conflict Resolution
+- **Detection**: Checks if version tag already exists
+- **Interactive Resolution**: Prompts user to overwrite existing tag
+- **Safe Deletion**: Removes old tag before creating new one
+
+### Configuration Safety
+- **Temporary .npmrc**: Uses temporary authentication that doesn't affect global settings
+- **Backup & Restore**: Preserves existing .npmrc content if present
+- **Cleanup Guarantee**: Always removes temporary files, even on error
+
+## Configuration
+
+### Global Configuration (`~/.qkdpx/config.json`)
+
+QKDPX uses a single global configuration system stored in user's home directory:
 
 ```json
 {
@@ -95,91 +149,189 @@ qkdpx 使用单一的全局配置系统，所有配置都存储在用户主目�
 }
 ```
 
-### 安全说明
+### Security Features
 
-- **Auth token 加密存储**: 使用 AES-256-CBC 加密算法保护认证信息
-- **配置文件权限**: 全局配置文件只有当前用户可访问
-- **显示时掩码**: Auth token 在显示时自动掩码为 `abc***xyz` 格式
+- **Encrypted Auth Token**: Uses AES-256-CBC encryption for token storage
+- **File Permissions**: Global configuration files are user-accessible only
+- **Display Masking**: Auth tokens are automatically masked as `abc***xyz` format
+- **Temporary Authentication**: Uses temporary .npmrc files that are automatically cleaned up
 
-## 开发
+## Development
+
+### Development Commands
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 开发模式
+# Development mode with tsx
 npm run dev
 
-# 构建
+# Build TypeScript to JavaScript
 npm run build
 
-# 代码检查
-npm run lint
-npm run typecheck
+# Watch mode for development
+npm run build:watch
 
-# 格式化代码
-npm run format
+# Code quality checks
+npm run lint              # ESLint checking
+npm run lint:fix          # Fix ESLint issues automatically
+npm run format            # Prettier formatting
+npm run typecheck         # TypeScript type checking
+
+# Clean build artifacts
+npm run clean
 ```
 
-## 技术架构
+### Testing
 
-### 核心依赖
+```bash
+# Run the built CLI
+npm start
 
-- **commander.js** - CLI 框架和命令解析
-- **inquirer** - 交互式命令行界面
-- **listr2** - 任务列表管理和进度显示
-- **semver** - 语义化版本管理
-- **fs-extra** - 增强的文件系统操作
-- **chalk** - 终端颜色和样式
-- **ora** - 优雅的终端 spinner
+# Test with development version
+npm run dev -- publish --dry-run
+```
 
-### 设计特点
+## Architecture
 
-- **原生 git 命令** - 使用 `child_process.spawn` 直接调用，无额外依赖
-- **ES 模块** - 完全支持现代 JavaScript 模块系统
-- **TypeScript** - 类型安全和更好的开发体验
-- **模块化架构** - 清晰的职责分离和代码组织
-- **加密存储** - 使用 Node.js 原生 crypto 模块加密敏感信息
+### Core Dependencies
 
-### 项目结构
+- **commander.js** - CLI framework and command parsing
+- **inquirer** - Interactive command line interfaces
+- **listr2** - Task list runner with progress indicators
+- **semver** - Semantic versioning utilities
+- **fs-extra** - Enhanced file system operations
+- **chalk** - Terminal styling and colors
+- **ora** - Elegant terminal spinners
+
+### Design Principles
+
+- **Native Git Commands** - Uses `child_process.spawn` for git operations, no external dependencies
+- **ES Modules** - Full support for modern JavaScript module system
+- **TypeScript** - Type safety and enhanced developer experience
+- **Modular Architecture** - Clear separation of concerns and code organization
+- **Encrypted Storage** - Uses Node.js native crypto module for sensitive information
+- **Publish-First Philosophy** - Only creates git commits/tags after successful npm publication
+
+### Project Structure
 
 ```
 src/
-├── commands/           # CLI 命令实现
-│   ├── init.ts        # init 命令
-│   └── publish.ts     # publish 命令
-├── modules/           # 核心功能模块
-│   ├── ChangeDetector.ts   # 变更检测
-│   ├── CommitManager.ts    # Git 提交管理
-│   ├── VersionManager.ts   # 版本管理
-│   └── PublishManager.ts   # 发布管理
-├── utils/             # 工具类
-│   ├── ConfigManager.ts    # 配置管理
-│   └── GitHelper.ts       # Git 操作封装
-├── types/             # TypeScript 类型定义
-└── index.ts           # 入口文件
+├── commands/              # CLI command implementations
+│   ├── init.ts           # Configuration initialization command
+│   └── publish.ts        # Main publish command with workflow orchestration
+├── modules/              # Core business logic modules
+│   ├── ChangeDetector.ts # Git status and package.json detection
+│   ├── CommitManager.ts  # Git commit and tag management (post-publish)
+│   ├── VersionManager.ts # Version selection and package.json updates
+│   └── PublishManager.ts # NPM publishing with temporary .npmrc handling
+├── utils/                # Utility classes
+│   ├── ConfigManager.ts  # Global configuration management with encryption
+│   └── GitHelper.ts      # Git command wrapper utilities
+├── types/                # TypeScript type definitions
+│   └── index.ts          # Shared interfaces and types
+└── index.ts              # CLI entry point with commander setup
 ```
 
-## 未来规划
+## Advanced Usage
+
+### Version Selection Options
+
+```bash
+# Interactive version selection (default)
+qkdpx publish
+
+# Keep current version unchanged
+qkdpx publish --version none
+
+# Specific version bumps
+qkdpx publish --version patch    # 1.0.0 → 1.0.1
+qkdpx publish --version minor    # 1.0.0 → 1.1.0
+qkdpx publish --version major    # 1.0.0 → 2.0.0
+```
+
+### Commit Handling Options
+
+When uncommitted changes are detected:
+- **Commit**: Enter commit message and commit before publishing
+- **Skip**: Continue publishing without committing changes
+- **Cancel**: Abort the publishing process
+
+### Configuration Management
+
+```bash
+# Interactive configuration setup
+qkdpx init
+
+# View current configuration (tokens are masked)
+qkdpx init --show
+
+# Reconfigure existing setup
+qkdpx init  # Will show current values and allow updates
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Authentication Errors**
+   ```bash
+   # Reconfigure authentication
+   qkdpx init
+   ```
+
+2. **Build Failures**
+   ```bash
+   # Ensure build script exists and works
+   npm run build
+   ```
+
+3. **Git Permission Issues**
+   ```bash
+   # Check git configuration
+   git config --list
+   ```
+
+4. **Tag Conflicts**
+   - Choose "overwrite" when prompted
+   - Or manually delete conflicting tags: `git tag -d v1.0.0`
+
+### Debug Information
+
+Enable verbose logging by setting environment variable:
+```bash
+DEBUG=qkdpx* qkdpx publish
+```
+
+## Roadmap
 
 ### v0.2.0
-- [ ] 支持自定义构建命令配置
-- [ ] 添加发布前测试运行选项
-- [ ] 支持 monorepo 项目结构
-- [ ] 添加发布历史记录
+- [ ] Support for custom build command configuration
+- [ ] Pre-publish test execution options
+- [ ] Monorepo project structure support
+- [ ] Publishing history tracking
 
 ### v0.3.0
-- [ ] 支持 changelog 自动生成
-- [ ] 集成 conventional commits
-- [ ] 支持发布到多个 registry
-- [ ] 添加回滚功能
+- [ ] Automatic changelog generation
+- [ ] Conventional commits integration
+- [ ] Multi-registry publishing support
+- [ ] Rollback functionality
 
 ### v1.0.0
-- [ ] 完整的插件系统
-- [ ] Web UI 配置界面
-- [ ] CI/CD 集成模板
-- [ ] 完善的文档和示例
+- [ ] Complete plugin system
+- [ ] Web UI for configuration
+- [ ] CI/CD integration templates
+- [ ] Comprehensive documentation and examples
 
-## 许可证
+## Contributing
 
-MIT
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see the [LICENSE](LICENSE) file for details.

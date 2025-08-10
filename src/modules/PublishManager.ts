@@ -23,31 +23,6 @@ const execCommand = (command: string, args: string[]): Promise<void> => {
   });
 };
 
-const execCommandWithEnv = (
-  command: string,
-  args: string[],
-  env: Record<string, string | undefined>
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: 'inherit',
-      env,
-    });
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Command failed with exit code ${code}`));
-      }
-    });
-
-    child.on('error', (error) => {
-      reject(error);
-    });
-  });
-};
-
 export class PublishManager {
   private configManager = new ConfigManager();
 
@@ -74,7 +49,7 @@ export class PublishManager {
     const npmrcPath = path.join(process.cwd(), '.npmrc');
     const existingNpmrc = await fs.pathExists(npmrcPath);
     let originalNpmrcContent = '';
-    
+
     if (existingNpmrc) {
       originalNpmrcContent = await fs.readFile(npmrcPath, 'utf-8');
     }
@@ -84,8 +59,12 @@ export class PublishManager {
       const registryUrl = new URL(config.registry);
       const npmrcContent = [
         `registry=${config.registry}`,
-        config.authToken ? `//${registryUrl.host}/:_authToken=${config.authToken}` : null,
-      ].filter(Boolean).join('\n');
+        config.authToken
+          ? `//${registryUrl.host}/:_authToken=${config.authToken}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       // Write temporary .npmrc
       await fs.writeFile(npmrcPath, npmrcContent, 'utf-8');

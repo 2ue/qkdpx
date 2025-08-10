@@ -2,6 +2,14 @@
   "name": "qkdpx",
   "version": "0.0.1",
   "description": "A fast and modern CLI tool for npm package publishing with automated workflow",
+  "homepage": "https://github.com/2ue/qkdpx#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/2ue/qkdpx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/2ue/qkdpx/issues"
+  },
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -25,13 +33,19 @@
     "cli",
     "automation",
     "versioning",
-    "git"
+    "git",
+    "workflow",
+    "typescript",
+    "semantic-versioning",
+    "package-management"
   ],
-  "author": "",
+  "author": "2ue <https://github.com/2ue>",
   "license": "MIT",
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "README.md",
+    "README.zh-CN.md"
   ],
   "engines": {
     "node": ">=16.0.0"

@@ -21,7 +21,10 @@ export class CommitManager {
     ]);
 
     if (!shouldCommit) {
-      throw new Error('Publishing cancelled: uncommitted changes detected');
+      console.log(
+        chalk.yellow('⚠️  Skipping commit - continuing with publish')
+      );
+      return;
     }
 
     const { commitMessage } = await inquirer.prompt([
@@ -42,10 +45,20 @@ export class CommitManager {
     await GitHelper.commit(commitMessage);
   }
 
-  async commitVersion(version: string): Promise<void> {
+  async commitVersionAfterPublish(
+    version: string,
+    originalVersion: string
+  ): Promise<void> {
     const tagName = `v${version}`;
+
+    // Only commit and tag if version was actually changed
+    if (version === originalVersion) {
+      console.log(chalk.blue('📝 No version change - skipping commit and tag'));
+      return;
+    }
+
     const tagExists = await GitHelper.tagExists(tagName);
-    
+
     if (tagExists) {
       console.log(chalk.yellow(`⚠️ Tag ${tagName} already exists`));
       const { shouldOverwrite } = await inquirer.prompt([
@@ -58,7 +71,7 @@ export class CommitManager {
       ]);
 
       if (!shouldOverwrite) {
-        throw new Error(`Publishing cancelled: tag ${tagName} already exists`);
+        throw new Error(`Tag creation cancelled: ${tagName} already exists`);
       }
 
       // Delete existing tag
@@ -67,16 +80,29 @@ export class CommitManager {
     }
 
     const message = `chore: bump version to ${version}`;
+    console.log(chalk.blue(`📝 Committing version ${version}...`));
     await GitHelper.add('package.json');
     await GitHelper.commit(message);
+
+    console.log(chalk.blue(`🏷️ Creating tag ${tagName}...`));
     await GitHelper.tag(tagName);
   }
 
-  async cleanupVersionTag(version: string): Promise<void> {
-    try {
-      await GitHelper.deleteTag(`v${version}`);
-    } catch (error) {
-      // Ignore errors if tag doesn't exist
+  async pushToRemote(): Promise<void> {
+    const { shouldPush } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'shouldPush',
+        message: 'Push commits and tags to remote repository?',
+        default: false,
+      },
+    ]);
+
+    if (shouldPush) {
+      console.log(chalk.blue('📤 Pushing to remote...'));
+      await GitHelper.push();
+      await GitHelper.push({ tags: true });
+      console.log(chalk.green('✅ Pushed to remote successfully'));
     }
   }
 }

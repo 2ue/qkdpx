@@ -17,11 +17,16 @@ export async function publishCommand(options: PublishOptions) {
   const versionManager = new VersionManager();
   const publishManager = new PublishManager();
 
+  let packageInfo: any;
+  let originalVersion: string = '';
+  let newVersion: string = '';
+
   try {
     // Step 1: Detect changes and get package info
     spinner.text = 'Detecting changes...';
     const gitStatus = await changeDetector.checkGitStatus();
-    const packageInfo = await changeDetector.getPackageInfo();
+    packageInfo = await changeDetector.getPackageInfo();
+    originalVersion = packageInfo.version;
     spinner.succeed('🔍 Changes detected');
 
     // Step 2: Handle commits if needed
@@ -33,13 +38,13 @@ export async function publishCommand(options: PublishOptions) {
       console.log('📝 No uncommitted changes found');
     }
 
-    // Step 3: Get version bump type (interactive)
+    // Step 3: Select version and update package.json (don't commit yet)
     spinner.stop();
-    const newVersion = await versionManager.bumpVersion(
+    newVersion = await versionManager.selectAndUpdateVersion(
       packageInfo,
       options.version
     );
-    console.log(chalk.green(`🏷️ Version bumped to ${newVersion}`));
+    console.log(chalk.green(`🏷️ Version prepared: ${newVersion}`));
 
     // Step 4: Final confirmation (interactive) - only if not skipping
     if (!options.skipConfirm) {
@@ -54,12 +59,19 @@ export async function publishCommand(options: PublishOptions) {
 
       if (!confirmed) {
         console.log(chalk.yellow('⚠️  Publishing cancelled by user'));
+        // Revert version changes
+        if (newVersion !== originalVersion) {
+          await versionManager.revertVersionChange(
+            packageInfo,
+            originalVersion
+          );
+        }
         process.exit(0);
       }
     }
 
-    // Step 5: Run remaining tasks with Listr2
-    const finalTasks = new Listr([
+    // Step 5: Build and Publish (but don't commit yet)
+    const buildAndPublishTasks = new Listr([
       {
         title: '🔨 Building project',
         task: async () => {
@@ -75,30 +87,43 @@ export async function publishCommand(options: PublishOptions) {
       },
     ]);
 
-    await finalTasks.run();
+    await buildAndPublishTasks.run();
 
-    if (options.dryRun) {
+    // Step 6: After successful publish, commit version and create tag
+    if (!options.dryRun) {
+      console.log(chalk.green('✅ Package published successfully!'));
+
+      // Now commit version change and create tag
+      await commitManager.commitVersionAfterPublish(
+        newVersion,
+        originalVersion
+      );
+
+      // Optional: Push to remote
+      await commitManager.pushToRemote();
+    } else {
       console.log(
         chalk.blue('🎯 Dry run completed - no actual publishing performed')
       );
-    } else {
-      console.log(chalk.green('✅ Package published successfully!'));
+      // Revert version changes for dry run
+      if (newVersion !== originalVersion) {
+        await versionManager.revertVersionChange(packageInfo, originalVersion);
+      }
     }
   } catch (error) {
     spinner.stop();
-    
-    // Clean up version tag if it was created and publishing failed
-    if (error instanceof Error && error.message.includes('Command failed')) {
-      console.log(chalk.yellow('⚠️ Cleaning up version tag...'));
+
+    // If we updated the version but publishing failed, revert the version change
+    if (newVersion && originalVersion && newVersion !== originalVersion) {
+      console.log(chalk.yellow('⚠️ Reverting version changes...'));
       try {
-        const packageInfo = await changeDetector.getPackageInfo();
-        await commitManager.cleanupVersionTag(packageInfo.version);
-        console.log(chalk.green('🧹 Version tag cleaned up'));
-      } catch (cleanupError) {
-        console.log(chalk.yellow('⚠️ Could not clean up version tag'));
+        await versionManager.revertVersionChange(packageInfo, originalVersion);
+        console.log(chalk.green('🔄 Version reverted successfully'));
+      } catch (revertError) {
+        console.log(chalk.red('❌ Failed to revert version changes'));
       }
     }
-    
+
     console.error(
       chalk.red('❌ Publishing failed:'),
       error instanceof Error ? error.message : String(error)
