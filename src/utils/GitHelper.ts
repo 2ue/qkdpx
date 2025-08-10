@@ -81,6 +81,20 @@ export class GitHelper {
     await execCommand('git', args);
   }
 
+  static async deleteTag(tagName: string): Promise<void> {
+    await execCommand('git', ['tag', '-d', tagName]);
+  }
+
+  static async tagExists(tagName: string): Promise<boolean> {
+    try {
+      await execCommand('git', ['tag', '-l', tagName]);
+      const output = await execCommand('git', ['tag', '-l', tagName]);
+      return output.trim() === tagName;
+    } catch {
+      return false;
+    }
+  }
+
   static async isGitRepository(): Promise<boolean> {
     try {
       await execCommand('git', ['rev-parse', '--git-dir']);

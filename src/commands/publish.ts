@@ -86,6 +86,19 @@ export async function publishCommand(options: PublishOptions) {
     }
   } catch (error) {
     spinner.stop();
+    
+    // Clean up version tag if it was created and publishing failed
+    if (error instanceof Error && error.message.includes('Command failed')) {
+      console.log(chalk.yellow('⚠️ Cleaning up version tag...'));
+      try {
+        const packageInfo = await changeDetector.getPackageInfo();
+        await commitManager.cleanupVersionTag(packageInfo.version);
+        console.log(chalk.green('🧹 Version tag cleaned up'));
+      } catch (cleanupError) {
+        console.log(chalk.yellow('⚠️ Could not clean up version tag'));
+      }
+    }
+    
     console.error(
       chalk.red('❌ Publishing failed:'),
       error instanceof Error ? error.message : String(error)
