@@ -120,6 +120,10 @@ export class GitHelper {
     await execCommand('git', ['tag', '-d', tagName]);
   }
 
+  static async deleteRemoteTag(tagName: string): Promise<void> {
+    await execCommand('git', ['push', 'origin', '--delete', tagName]);
+  }
+
   static async tagExists(tagName: string): Promise<boolean> {
     try {
       const output = await execCommand('git', ['tag', '-l', tagName]);

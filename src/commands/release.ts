@@ -42,12 +42,16 @@ export async function releaseCommand(options: {
     }
 
     // 3. Ask if should bump version
+    spinner.stop();
     if (!options.skipConfirm) {
+      console.log(
+        chalk.blue(`📦 Current version: ${chalk.cyan(currentVersion)}`)
+      );
       const { shouldBumpVersion } = await inquirer.prompt([
         {
           type: 'confirm',
           name: 'shouldBumpVersion',
-          message: `Current version is ${chalk.cyan(currentVersion)}. Do you want to bump the version?`,
+          message: 'Do you want to bump the version?',
           default: true,
         },
       ]);
@@ -55,15 +59,20 @@ export async function releaseCommand(options: {
       if (!shouldBumpVersion) {
         newVersion = currentVersion;
         console.log(
-          chalk.yellow('Version unchanged, will tag current version')
+          chalk.yellow(
+            `📌 Version unchanged: ${currentVersion} → ${newVersion}`
+          )
         );
+        console.log(chalk.blue('Will create tag for current version'));
       } else {
         // Select version type
         newVersion = await versionManager.selectAndUpdateVersion(
           packageInfo,
           options.version
         );
-        console.log(chalk.green(`Version bumped to ${newVersion}`));
+        console.log(
+          chalk.green(`🔄 Version updated: ${currentVersion} → ${newVersion}`)
+        );
       }
     } else {
       // Auto bump version if specified
@@ -72,9 +81,12 @@ export async function releaseCommand(options: {
           packageInfo,
           options.version
         );
-        console.log(chalk.green(`Version bumped to ${newVersion}`));
+        console.log(
+          chalk.green(`🔄 Version updated: ${currentVersion} → ${newVersion}`)
+        );
       } else {
         newVersion = currentVersion;
+        console.log(chalk.yellow(`📌 Version unchanged: ${newVersion}`));
       }
     }
 
@@ -92,38 +104,82 @@ export async function releaseCommand(options: {
       },
       {
         title: `Create and push tag v${newVersion}`,
-        task: async () => {
+        task: async (ctx, task) => {
           const tagName = `v${newVersion}`;
 
-          // Check if tag already exists
-          const tagExists = await GitHelper.tagExists(tagName);
-          if (tagExists) {
+          // Check if tag already exists locally
+          const localTagExists = await GitHelper.tagExists(tagName);
+          if (localTagExists) {
             if (!options.skipConfirm) {
               const { overwrite } = await inquirer.prompt([
                 {
                   type: 'confirm',
                   name: 'overwrite',
-                  message: `Tag ${tagName} already exists. Overwrite?`,
+                  message: `Local tag ${tagName} already exists. Overwrite?`,
                   default: false,
                 },
               ]);
 
               if (!overwrite) {
-                throw new Error(`Tag ${tagName} already exists`);
+                throw new Error(
+                  `Tag creation cancelled: ${tagName} already exists locally`
+                );
               }
 
-              // Delete existing tag
+              // Delete existing local tag
+              task.output = 'Deleting existing local tag...';
               await GitHelper.deleteTag(tagName);
             } else {
-              throw new Error(`Tag ${tagName} already exists`);
+              throw new Error(`Tag ${tagName} already exists locally`);
             }
           }
 
           // Create new tag
+          task.output = 'Creating new tag...';
           await GitHelper.tag(tagName);
 
-          // Push commits and tags
-          await GitHelper.push({ tags: true });
+          // Try to push - handle remote tag conflicts
+          try {
+            task.output = 'Pushing commits and tags...';
+            await GitHelper.push({ tags: true });
+          } catch (pushError) {
+            // If remote tag already exists, ask to delete it
+            if (
+              pushError instanceof Error &&
+              pushError.message.includes('already exists')
+            ) {
+              if (!options.skipConfirm) {
+                const { deleteRemoteTag } = await inquirer.prompt([
+                  {
+                    type: 'confirm',
+                    name: 'deleteRemoteTag',
+                    message: `Remote tag ${tagName} already exists. Delete and recreate?`,
+                    default: false,
+                  },
+                ]);
+
+                if (!deleteRemoteTag) {
+                  throw new Error(
+                    `Push cancelled: remote tag ${tagName} already exists`
+                  );
+                }
+
+                // Delete remote tag first
+                task.output = 'Deleting existing remote tag...';
+                await GitHelper.deleteRemoteTag(tagName);
+
+                // Then push again
+                task.output = 'Pushing commits and tags...';
+                await GitHelper.push({ tags: true });
+              } else {
+                throw new Error(
+                  `Remote tag ${tagName} already exists - use interactive mode to overwrite`
+                );
+              }
+            } else {
+              throw pushError;
+            }
+          }
         },
       },
     ]);
