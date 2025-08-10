@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { publishCommand } from './commands/publish.js';
 import { initCommand } from './commands/init.js';
+import { releaseCommand } from './commands/release.js';
 import chalk from 'chalk';
 
 const program = new Command();
@@ -17,6 +18,14 @@ program
   .option('--skip-confirm', 'skip confirmation prompts')
   .option('--dry-run', 'perform a dry run without making changes')
   .action(publishCommand);
+
+program
+  .command('release')
+  .description('Commit changes, bump version, create tag and push to trigger GitHub Actions')
+  .option('-v, --version <type>', 'version bump type (patch|minor|major)')
+  .option('--skip-confirm', 'skip confirmation prompts')
+  .option('-m, --message <message>', 'commit message')
+  .action(releaseCommand);
 
 program
   .command('init')

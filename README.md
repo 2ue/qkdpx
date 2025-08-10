@@ -1,6 +1,6 @@
 # QKDPX - Fast NPM Publishing Tool
 
-A modern CLI tool for automated npm package publishing with git management, version control, and secure configuration management.
+A modern CLI tool for automated npm package publishing with git management, version control, GitHub Actions integration, and secure configuration management.
 
 English | [简体中文](README.zh-CN.md)
 
@@ -13,6 +13,7 @@ English | [简体中文](README.zh-CN.md)
 - 📦 **Safe Publishing** - Secure publishing with temporary .npmrc file management
 - 🔐 **Unified Configuration** - Global configuration management with encrypted auth token storage
 - 🏷️ **Post-Publish Tagging** - Creates git commits and tags only after successful publication
+- 🚀 **GitHub Actions Integration** - Release command for automated CI/CD workflows
 - 📤 **Optional Remote Push** - Choose whether to push commits and tags to remote repository
 - ⚡ **Modern Toolchain** - Built with TypeScript + Node.js using ES modules
 
@@ -47,7 +48,7 @@ npm link
 
 ## Usage
 
-### Basic Usage
+### Publish Command
 
 ```bash
 # Publish current project
@@ -65,6 +66,24 @@ qkdpx publish --skip-confirm
 qkdpx publish --dry-run
 ```
 
+### Release Command (GitHub Actions Integration)
+
+```bash
+# Interactive release workflow
+qkdpx release
+
+# Specify version bump type
+qkdpx release --version patch
+qkdpx release --version minor  
+qkdpx release --version major
+
+# Skip confirmation prompts
+qkdpx release --skip-confirm
+
+# Custom commit message
+qkdpx release -m "feat: add new features"
+```
+
 ### Configuration Management
 
 ```bash
@@ -75,72 +94,91 @@ qkdpx init
 qkdpx init --show
 ```
 
+## Commands Overview
+
+| Command | Purpose | GitHub Actions |
+|---------|---------|----------------|
+| `qkdpx publish` | Publish to npm only | ❌ |
+| `qkdpx release` | Commit → Tag → Push → Trigger CI/CD | ✅ |
+| `qkdpx init` | Configure authentication | - |
+
 ## Workflow
+
+### Publish Workflow (Direct NPM Publishing)
 
 The publishing workflow follows a safe, **publish-first-then-commit** approach:
 
-### 1. 🔍 **Change Detection**
-- Checks git working directory status
-- Reads current package.json information
-- Detects uncommitted changes
+1. **Change Detection** - Check git status and package.json
+2. **Commit Handling** - Optional commit of uncommitted changes
+3. **Version Selection** - Interactive or specified version bump
+4. **Build Verification** - Run build scripts if available
+5. **NPM Publishing** - Secure publish with temporary .npmrc
+6. **Post-Publish Git Operations** - Commit version changes and create tags
+7. **Optional Remote Push** - Choose whether to push to remote
 
-### 2. 📝 **Commit Handling** (Optional)
-- If uncommitted changes exist, prompts user to commit or skip
-- **Skip option**: Continue publishing without committing changes
-- **Commit option**: Interactive commit message input and automatic commit
+### Release Workflow (GitHub Actions Integration)
 
-### 3. 🏷️ **Version Preparation**
-- Interactive version bump selection (patch/minor/major/none)
-- **None option**: Keep current version unchanged
-- Updates package.json **without** committing immediately
+Designed to trigger automated CI/CD pipelines:
 
-### 4. ✅ **Final Confirmation**
-- Shows package name and target version
-- Last chance to cancel before publishing
+1. **Change Detection** - Check git status and package.json
+2. **Commit Handling** - Handle uncommitted changes
+3. **Version Bump** - Optional version upgrade with user confirmation
+4. **Git Operations** - Commit version changes and create version tag
+5. **Remote Push** - Push commits and tags to trigger GitHub Actions
+6. **CI/CD Trigger** - GitHub Actions handles build and publish automatically
 
-### 5. 🔨 **Build Verification**
-- Automatically runs `npm run build` if build script exists
-- Ensures code builds successfully before publishing
+## GitHub Actions Integration
 
-### 6. 📦 **Package Publishing**
-- Creates temporary `.npmrc` file with registry and auth token
-- Publishes to npm with `--access public` flag
-- Automatically cleans up temporary `.npmrc` file
-- **Safe authentication**: Preserves existing `.npmrc` content if present
+### Setup GitHub Actions
 
-### 7. 🏷️ **Post-Publish Git Operations** (Only after successful publish)
-- **Version Commit**: Commits package.json changes with conventional message
-- **Git Tagging**: Creates version tag (e.g., `v1.0.0`)
-- **Tag Conflict Handling**: Detects existing tags and prompts for overwrite
-- **Skip Logic**: No commit/tag if version wasn't changed
+Create `.github/workflows/release.yml`:
 
-### 8. 📤 **Remote Push** (Optional)
-- Prompts whether to push commits and tags to remote repository
-- **Default**: No (safer option)
-- Pushes both commits and tags if confirmed
+```yaml
+name: Release and Publish
+on:
+  push:
+    tags: ['v*.*.*']
 
-## Error Handling & Recovery
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+      - run: |
+          npm ci
+          npm run build
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
 
-### Publish Failure Recovery
-- **Automatic Rollback**: Reverts package.json changes if publishing fails
-- **No Git Pollution**: No commits or tags created on failure
-- **Clean State**: Working directory returns to pre-publish state
+### Usage with CI/CD
 
-### Tag Conflict Resolution
-- **Detection**: Checks if version tag already exists
-- **Interactive Resolution**: Prompts user to overwrite existing tag
-- **Safe Deletion**: Removes old tag before creating new one
+```bash
+# Local development and testing
+qkdpx publish --dry-run
 
-### Configuration Safety
-- **Temporary .npmrc**: Uses temporary authentication that doesn't affect global settings
-- **Backup & Restore**: Preserves existing .npmrc content if present
-- **Cleanup Guarantee**: Always removes temporary files, even on error
+# Release to trigger GitHub Actions
+qkdpx release --version patch
+```
+
+This will:
+1. Commit any changes locally
+2. Bump version and commit
+3. Create and push version tag (`v1.0.1`)
+4. GitHub Actions automatically builds and publishes to npm
+5. Creates GitHub release with artifacts
 
 ## Configuration
 
 ### Global Configuration (`~/.qkdpx/config.json`)
-
-QKDPX uses a single global configuration system stored in user's home directory:
 
 ```json
 {
@@ -151,186 +189,81 @@ QKDPX uses a single global configuration system stored in user's home directory:
 
 ### Security Features
 
-- **Encrypted Auth Token**: Uses AES-256-CBC encryption for token storage
-- **File Permissions**: Global configuration files are user-accessible only
-- **Display Masking**: Auth tokens are automatically masked as `abc***xyz` format
-- **Temporary Authentication**: Uses temporary .npmrc files that are automatically cleaned up
+- **Encrypted Auth Token** - AES-256-CBC encryption for token storage
+- **File Permissions** - User-accessible only
+- **Display Masking** - Tokens shown as `abc***xyz` format
+- **Temporary Authentication** - Auto-cleanup of temporary .npmrc files
 
 ## Development
 
 ### Development Commands
 
 ```bash
-# Install dependencies
-npm install
-
-# Development mode with tsx
-npm run dev
-
-# Build TypeScript to JavaScript
-npm run build
-
-# Watch mode for development
-npm run build:watch
-
-# Code quality checks
-npm run lint              # ESLint checking
-npm run lint:fix          # Fix ESLint issues automatically
-npm run format            # Prettier formatting
-npm run typecheck         # TypeScript type checking
-
-# Clean build artifacts
-npm run clean
+npm install          # Install dependencies
+npm run dev          # Development mode with tsx
+npm run build        # Build TypeScript to JavaScript
+npm run lint         # ESLint checking
+npm run typecheck    # TypeScript type checking
+npm run clean        # Clean build artifacts
 ```
-
-### Testing
-
-```bash
-# Run the built CLI
-npm start
-
-# Test with development version
-npm run dev -- publish --dry-run
-```
-
-## Architecture
-
-### Core Dependencies
-
-- **commander.js** - CLI framework and command parsing
-- **inquirer** - Interactive command line interfaces
-- **listr2** - Task list runner with progress indicators
-- **semver** - Semantic versioning utilities
-- **fs-extra** - Enhanced file system operations
-- **chalk** - Terminal styling and colors
-- **ora** - Elegant terminal spinners
-
-### Design Principles
-
-- **Native Git Commands** - Uses `child_process.spawn` for git operations, no external dependencies
-- **ES Modules** - Full support for modern JavaScript module system
-- **TypeScript** - Type safety and enhanced developer experience
-- **Modular Architecture** - Clear separation of concerns and code organization
-- **Encrypted Storage** - Uses Node.js native crypto module for sensitive information
-- **Publish-First Philosophy** - Only creates git commits/tags after successful npm publication
 
 ### Project Structure
 
 ```
 src/
-├── commands/              # CLI command implementations
-│   ├── init.ts           # Configuration initialization command
-│   └── publish.ts        # Main publish command with workflow orchestration
-├── modules/              # Core business logic modules
-│   ├── ChangeDetector.ts # Git status and package.json detection
-│   ├── CommitManager.ts  # Git commit and tag management (post-publish)
-│   ├── VersionManager.ts # Version selection and package.json updates
-│   └── PublishManager.ts # NPM publishing with temporary .npmrc handling
+├── commands/
+│   ├── init.ts           # Configuration command
+│   ├── publish.ts        # NPM publish workflow
+│   └── release.ts        # GitHub Actions release workflow
+├── modules/              # Business logic
 ├── utils/                # Utility classes
-│   ├── ConfigManager.ts  # Global configuration management with encryption
-│   └── GitHelper.ts      # Git command wrapper utilities
-├── types/                # TypeScript type definitions
-│   └── index.ts          # Shared interfaces and types
-└── index.ts              # CLI entry point with commander setup
+└── types/                # TypeScript definitions
 ```
 
-## Advanced Usage
+## Advanced Examples
 
-### Version Selection Options
+### Version Management
 
 ```bash
-# Interactive version selection (default)
-qkdpx publish
+# Keep current version (just tag and push)
+qkdpx release --version none
 
-# Keep current version unchanged
-qkdpx publish --version none
+# Interactive selection with custom message
+qkdpx release -m "chore: prepare for release"
 
-# Specific version bumps
-qkdpx publish --version patch    # 1.0.0 → 1.0.1
-qkdpx publish --version minor    # 1.0.0 → 1.1.0
-qkdpx publish --version major    # 1.0.0 → 2.0.0
+# Automated release in CI environment
+qkdpx release --version patch --skip-confirm
 ```
 
-### Commit Handling Options
+### Error Recovery
 
-When uncommitted changes are detected:
-- **Commit**: Enter commit message and commit before publishing
-- **Skip**: Continue publishing without committing changes
-- **Cancel**: Abort the publishing process
-
-### Configuration Management
-
-```bash
-# Interactive configuration setup
-qkdpx init
-
-# View current configuration (tokens are masked)
-qkdpx init --show
-
-# Reconfigure existing setup
-qkdpx init  # Will show current values and allow updates
-```
+Both workflows include automatic error recovery:
+- **Publish Failure**: Reverts package.json changes
+- **Tag Conflicts**: Interactive overwrite prompts
+- **Git Errors**: Clean rollback to previous state
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Errors**
-   ```bash
-   # Reconfigure authentication
-   qkdpx init
-   ```
+1. **Authentication**: `qkdpx init` to reconfigure
+2. **Build Failures**: Ensure `npm run build` works
+3. **Tag Conflicts**: Choose overwrite or manually delete tags
+4. **Git Issues**: Check `git config --list`
 
-2. **Build Failures**
-   ```bash
-   # Ensure build script exists and works
-   npm run build
-   ```
+### Debug Mode
 
-3. **Git Permission Issues**
-   ```bash
-   # Check git configuration
-   git config --list
-   ```
-
-4. **Tag Conflicts**
-   - Choose "overwrite" when prompted
-   - Or manually delete conflicting tags: `git tag -d v1.0.0`
-
-### Debug Information
-
-Enable verbose logging by setting environment variable:
 ```bash
 DEBUG=qkdpx* qkdpx publish
 ```
 
-## Roadmap
-
-### v0.2.0
-- [ ] Support for custom build command configuration
-- [ ] Pre-publish test execution options
-- [ ] Monorepo project structure support
-- [ ] Publishing history tracking
-
-### v0.3.0
-- [ ] Automatic changelog generation
-- [ ] Conventional commits integration
-- [ ] Multi-registry publishing support
-- [ ] Rollback functionality
-
-### v1.0.0
-- [ ] Complete plugin system
-- [ ] Web UI for configuration
-- [ ] CI/CD integration templates
-- [ ] Comprehensive documentation and examples
-
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/name`)
+3. Commit changes (`git commit -m 'Add feature'`)
+4. Push branch (`git push origin feature/name`)
+5. Open Pull Request
 
 ## License
 
