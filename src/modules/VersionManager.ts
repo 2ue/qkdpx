@@ -9,7 +9,7 @@ export class VersionManager {
 
   async bumpVersion(
     packageInfo: PackageInfo,
-    versionType?: 'patch' | 'minor' | 'major'
+    versionType?: 'patch' | 'minor' | 'major' | 'none'
   ): Promise<string> {
     let bumpType = versionType;
 
@@ -20,6 +20,10 @@ export class VersionManager {
           name: 'selectedVersion',
           message: 'Select version bump type:',
           choices: [
+            {
+              name: `none (keep current version ${packageInfo.version})`,
+              value: 'none',
+            },
             {
               name: `patch (${packageInfo.version} → ${semver.inc(packageInfo.version, 'patch')})`,
               value: 'patch',
@@ -36,6 +40,11 @@ export class VersionManager {
         },
       ]);
       bumpType = selectedVersion;
+    }
+
+    // If no version bump is selected, return current version
+    if (bumpType === 'none') {
+      return packageInfo.version;
     }
 
     const newVersion = semver.inc(packageInfo.version, bumpType!);

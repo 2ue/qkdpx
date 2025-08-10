@@ -35,7 +35,10 @@ export async function publishCommand(options: PublishOptions) {
 
     // Step 3: Get version bump type (interactive)
     spinner.stop();
-    const newVersion = await versionManager.bumpVersion(packageInfo, options.version);
+    const newVersion = await versionManager.bumpVersion(
+      packageInfo,
+      options.version
+    );
     console.log(chalk.green(`🏷️ Version bumped to ${newVersion}`));
 
     // Step 4: Final confirmation (interactive) - only if not skipping
@@ -75,7 +78,9 @@ export async function publishCommand(options: PublishOptions) {
     await finalTasks.run();
 
     if (options.dryRun) {
-      console.log(chalk.blue('🎯 Dry run completed - no actual publishing performed'));
+      console.log(
+        chalk.blue('🎯 Dry run completed - no actual publishing performed')
+      );
     } else {
       console.log(chalk.green('✅ Package published successfully!'));
     }

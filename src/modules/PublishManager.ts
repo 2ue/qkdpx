@@ -24,14 +24,14 @@ const execCommand = (command: string, args: string[]): Promise<void> => {
 };
 
 const execCommandWithEnv = (
-  command: string, 
-  args: string[], 
+  command: string,
+  args: string[],
   env: Record<string, string | undefined>
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { 
+    const child = spawn(command, args, {
       stdio: 'inherit',
-      env
+      env,
     });
 
     child.on('close', (code) => {
@@ -73,14 +73,21 @@ export class PublishManager {
     // Set up npm environment variables instead of creating .npmrc file
     const env = { ...process.env };
     env.NPM_CONFIG_REGISTRY = config.registry;
-    
+
     if (config.authToken) {
-      // Use NPM_TOKEN for authentication (standard npm env variable)
-      env.NPM_TOKEN = config.authToken;
+      // Set auth token for the specific registry
+      const registryUrl = new URL(config.registry);
+      const authTokenKey = `//${registryUrl.host}/:_authToken`;
+      env[`npm_config_${authTokenKey.replace(/[/:.]/g, '_')}`] =
+        config.authToken;
     }
 
-    console.log(chalk.blue(`📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`));
-    
+    console.log(
+      chalk.blue(
+        `📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`
+      )
+    );
+
     // Publish to npm using environment variables
     await execCommandWithEnv('npm', ['publish'], env);
   }

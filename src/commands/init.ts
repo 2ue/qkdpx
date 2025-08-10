@@ -55,20 +55,29 @@ async function initGlobalConfig(configManager: ConfigManager): Promise<void> {
   if (await configManager.globalConfigExists()) {
     hasExisting = true;
     existingConfig = await configManager.loadGlobalConfig();
-    
+
     console.log(chalk.blue('📋 Current configuration:'));
-    console.log(`├── Registry: ${chalk.green(existingConfig.registry || 'https://registry.npmjs.org/')}`);
+    console.log(
+      `├── Registry: ${chalk.green(existingConfig.registry || 'https://registry.npmjs.org/')}`
+    );
     if (existingConfig.authToken) {
       // Mask the token for display
-      const masked = existingConfig.authToken.length > 6 
-        ? existingConfig.authToken.slice(0, 3) + '***' + existingConfig.authToken.slice(-3)
-        : existingConfig.authToken;
+      const masked =
+        existingConfig.authToken.length > 6
+          ? existingConfig.authToken.slice(0, 3) +
+            '***' +
+            existingConfig.authToken.slice(-3)
+          : existingConfig.authToken;
       console.log(`└── Auth token: ${chalk.yellow(masked)}`);
     } else {
       console.log(`└── Auth token: ${chalk.red('not configured')}`);
     }
     console.log();
-    console.log(chalk.gray('💡 Press Enter to keep current values, or type new values to update.'));
+    console.log(
+      chalk.gray(
+        '💡 Press Enter to keep current values, or type new values to update.'
+      )
+    );
     console.log();
   }
 
@@ -77,8 +86,8 @@ async function initGlobalConfig(configManager: ConfigManager): Promise<void> {
     {
       type: 'input',
       name: 'registry',
-      message: hasExisting 
-        ? `NPM Registry URL (current: ${existingConfig.registry || 'https://registry.npmjs.org/'}):` 
+      message: hasExisting
+        ? `NPM Registry URL (current: ${existingConfig.registry || 'https://registry.npmjs.org/'}):`
         : 'NPM Registry URL:',
       default: existingConfig.registry || 'https://registry.npmjs.org/',
       validate: (input: string) => {
@@ -93,9 +102,10 @@ async function initGlobalConfig(configManager: ConfigManager): Promise<void> {
     {
       type: 'password',
       name: 'authToken',
-      message: hasExisting && existingConfig.authToken
-        ? 'Auth Token (leave empty to keep current, type new to update):'
-        : 'Auth Token (optional):',
+      message:
+        hasExisting && existingConfig.authToken
+          ? 'Auth Token (leave empty to keep current, type new to update):'
+          : 'Auth Token (optional):',
       mask: '*',
     },
   ]);
