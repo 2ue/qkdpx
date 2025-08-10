@@ -1,20 +1,21 @@
-# QKDPX - NPM 快速发布工具
+# QKDPX - 快速 NPM 发布工具
 
-一个现代化的 CLI 工具，用于 npm 包的自动化发布流程，支持 git 管理、版本控制和安全的配置管理。
+一个现代化的 CLI 工具，用于 npm 包的自动化发布，支持 git 管理、版本控制、GitHub Actions 集成和安全配置管理。
 
 [English](README.md) | 简体中文
 
-## 特性
+## 功能特性
 
-- 🔍 **智能检测** - 自动检测未提交的变更和当前版本状态
-- 📝 **交互式提交** - 可选择的提交处理和用户友好的提示
-- 🏷️ **语义化版本** - 支持 patch/minor/major 版本升级，包含"无变更"选项
+- 🔍 **智能检测** - 自动检测未提交的更改和当前版本状态
+- 📝 **交互式提交** - 可选的提交处理，提供用户友好的提示
+- 🏷️ **语义化版本** - 支持 patch/minor/major 版本升级和"不变"选项
 - 🔨 **自动构建** - 发布前自动运行构建脚本（如果存在）
-- 📦 **安全发布** - 使用临时 .npmrc 文件管理的安全发布
-- 🔐 **统一配置** - 全局配置管理，支持加密的 auth token 存储
-- 🏷️ **发布后标记** - 只在发布成功后创建 git 提交和标签
-- 📤 **可选远程推送** - 选择是否将提交和标签推送到远程仓库
-- ⚡ **现代化工具链** - 基于 TypeScript + Node.js 构建，使用 ES 模块
+- 📦 **安全发布** - 使用临时 .npmrc 文件进行安全发布
+- 🔐 **统一配置** - 全局配置管理，支持加密的身份验证令牌存储
+- 🏷️ **发布后标签** - 仅在发布成功后创建 git 提交和标签
+- 🚀 **GitHub Actions 集成** - 发布命令支持自动化 CI/CD 工作流
+- 📤 **可选远程推送** - 选择是否推送提交和标签到远程仓库
+- ⚡ **现代工具链** - 使用 TypeScript + Node.js 构建，支持 ES 模块
 
 ## 安装
 
@@ -47,7 +48,7 @@ npm link
 
 ## 使用方法
 
-### 基本用法
+### 发布命令
 
 ```bash
 # 发布当前项目
@@ -61,8 +62,26 @@ qkdpx publish --version major
 # 跳过确认提示
 qkdpx publish --skip-confirm
 
-# 试运行（不实际发布）
+# 模拟运行（不实际发布）
 qkdpx publish --dry-run
+```
+
+### 发版命令（GitHub Actions 集成）
+
+```bash
+# 交互式发版工作流
+qkdpx release
+
+# 指定版本升级类型
+qkdpx release --version patch
+qkdpx release --version minor  
+qkdpx release --version major
+
+# 跳过确认提示
+qkdpx release --skip-confirm
+
+# 自定义提交消息
+qkdpx release -m "feat: 添加新功能"
 ```
 
 ### 配置管理
@@ -75,261 +94,175 @@ qkdpx init
 qkdpx init --show
 ```
 
+## 命令概览
+
+| 命令 | 用途 | GitHub Actions |
+|------|------|----------------|
+| `qkdpx publish` | 仅发布到 npm | ❌ |
+| `qkdpx release` | 提交 → 标签 → 推送 → 触发 CI/CD | ✅ |
+| `qkdpx init` | 配置身份验证 | - |
+
 ## 工作流程
 
-发布工作流程遵循安全的**先发布再提交**方法：
+### 发布工作流（直接 NPM 发布）
 
-### 1. 🔍 **变更检测**
-- 检查 git 工作目录状态
-- 读取当前 package.json 信息
-- 检测未提交的变更
+发布工作流遵循安全的**先发布后提交**方式：
 
-### 2. 📝 **提交处理**（可选）
-- 如果存在未提交变更，提示用户提交或跳过
-- **跳过选项**：不提交变更继续发布
-- **提交选项**：交互式提交消息输入和自动提交
+1. **变更检测** - 检查 git 状态和 package.json
+2. **提交处理** - 可选择提交未提交的更改
+3. **版本选择** - 交互式或指定的版本升级
+4. **构建验证** - 如果可用，运行构建脚本
+5. **NPM 发布** - 使用临时 .npmrc 安全发布
+6. **发布后 Git 操作** - 提交版本更改并创建标签
+7. **可选远程推送** - 选择是否推送到远程
 
-### 3. 🏷️ **版本准备**
-- 交互式版本升级选择（patch/minor/major/none）
-- **无变更选项**：保持当前版本不变
-- 更新 package.json **但不**立即提交
+### 发版工作流（GitHub Actions 集成）
 
-### 4. ✅ **最终确认**
-- 显示包名和目标版本
-- 发布前的最后取消机会
+专为触发自动化 CI/CD 流水线设计：
 
-### 5. 🔨 **构建验证**
-- 如果存在构建脚本则自动运行 `npm run build`
-- 确保代码在发布前成功构建
+1. **变更检测** - 检查 git 状态和 package.json
+2. **提交处理** - 处理未提交的更改
+3. **版本升级** - 用户确认的可选版本升级
+4. **Git 操作** - 提交版本更改并创建版本标签
+5. **远程推送** - 推送提交和标签以触发 GitHub Actions
+6. **CI/CD 触发** - GitHub Actions 自动处理构建和发布
 
-### 6. 📦 **包发布**
-- 创建临时 `.npmrc` 文件，包含注册表和认证令牌
-- 使用 `--access public` 标志发布到 npm
-- 自动清理临时 `.npmrc` 文件
-- **安全认证**：如果存在，保留现有 `.npmrc` 内容
+## GitHub Actions 集成
 
-### 7. 🏷️ **发布后 Git 操作**（仅在发布成功后）
-- **版本提交**：使用约定式消息提交 package.json 变更
-- **Git 标记**：创建版本标签（例如，`v1.0.0`）
-- **标签冲突处理**：检测现有标签并提示覆盖
-- **跳过逻辑**：如果版本未变更则不提交/标记
+### 设置 GitHub Actions
 
-### 8. 📤 **远程推送**（可选）
-- 提示是否将提交和标签推送到远程仓库
-- **默认**：否（更安全的选项）
-- 如果确认则推送提交和标签
+创建 `.github/workflows/release.yml`：
 
-## 错误处理和恢复
+```yaml
+name: Release and Publish
+on:
+  push:
+    tags: ['v*.*.*']
 
-### 发布失败恢复
-- **自动回滚**：发布失败时恢复 package.json 变更
-- **无 Git 污染**：失败时不创建提交或标签
-- **清洁状态**：工作目录返回到发布前状态
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+      - run: |
+          npm ci
+          npm run build
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
 
-### 标签冲突解决
-- **检测**：检查版本标签是否已存在
-- **交互式解决**：提示用户覆盖现有标签
-- **安全删除**：在创建新标签前删除旧标签
+### CI/CD 使用方法
 
-### 配置安全
-- **临时 .npmrc**：使用不影响全局设置的临时认证
-- **备份和恢复**：如果存在，保留现有 .npmrc 内容
-- **清理保证**：即使出错也始终删除临时文件
+```bash
+# 本地开发和测试
+qkdpx publish --dry-run
+
+# 发版以触发 GitHub Actions
+qkdpx release --version patch
+```
+
+这将：
+1. 在本地提交任何更改
+2. 升级版本并提交
+3. 创建并推送版本标签（`v1.0.1`）
+4. GitHub Actions 自动构建并发布到 npm
+5. 创建带有构建产物的 GitHub 发布
 
 ## 配置
 
 ### 全局配置 (`~/.qkdpx/config.json`)
 
-QKDPX 使用存储在用户主目录的单一全局配置系统：
-
 ```json
 {
   "registry": "https://registry.npmjs.org/",
-  "authToken": "<encrypted-token>"
+  "authToken": "<加密令牌>"
 }
 ```
 
-### 安全特性
+### 安全功能
 
-- **加密认证令牌**：使用 AES-256-CBC 加密存储令牌
-- **文件权限**：全局配置文件仅用户可访问
-- **显示遮罩**：认证令牌自动遮罩为 `abc***xyz` 格式
-- **临时认证**：使用自动清理的临时 .npmrc 文件
+- **加密身份验证令牌** - 使用 AES-256-CBC 加密存储令牌
+- **文件权限** - 仅用户可访问
+- **显示掩码** - 令牌显示为 `abc***xyz` 格式
+- **临时身份验证** - 自动清理临时 .npmrc 文件
 
 ## 开发
 
 ### 开发命令
 
 ```bash
-# 安装依赖
-npm install
-
-# 使用 tsx 的开发模式
-npm run dev
-
-# 构建 TypeScript 到 JavaScript
-npm run build
-
-# 开发的监视模式
-npm run build:watch
-
-# 代码质量检查
-npm run lint              # ESLint 检查
-npm run lint:fix          # 自动修复 ESLint 问题
-npm run format            # Prettier 格式化
-npm run typecheck         # TypeScript 类型检查
-
-# 清理构建产物
-npm run clean
+npm install          # 安装依赖
+npm run dev          # 使用 tsx 的开发模式
+npm run build        # 将 TypeScript 构建为 JavaScript
+npm run lint         # ESLint 检查
+npm run typecheck    # TypeScript 类型检查
+npm run clean        # 清理构建产物
 ```
-
-### 测试
-
-```bash
-# 运行构建的 CLI
-npm start
-
-# 使用开发版本测试
-npm run dev -- publish --dry-run
-```
-
-## 架构
-
-### 核心依赖
-
-- **commander.js** - CLI 框架和命令解析
-- **inquirer** - 交互式命令行界面
-- **listr2** - 带进度指示器的任务列表运行器
-- **semver** - 语义化版本工具
-- **fs-extra** - 增强的文件系统操作
-- **chalk** - 终端样式和颜色
-- **ora** - 优雅的终端转圈器
-
-### 设计原则
-
-- **原生 Git 命令** - 使用 `child_process.spawn` 进行 git 操作，无外部依赖
-- **ES 模块** - 完全支持现代 JavaScript 模块系统
-- **TypeScript** - 类型安全和增强的开发体验
-- **模块化架构** - 清晰的关注点分离和代码组织
-- **加密存储** - 使用 Node.js 原生 crypto 模块处理敏感信息
-- **发布优先哲学** - 只在 npm 发布成功后创建 git 提交/标签
 
 ### 项目结构
 
 ```
 src/
-├── commands/              # CLI 命令实现
-│   ├── init.ts           # 配置初始化命令
-│   └── publish.ts        # 主发布命令与工作流编排
-├── modules/              # 核心业务逻辑模块
-│   ├── ChangeDetector.ts # Git 状态和 package.json 检测
-│   ├── CommitManager.ts  # Git 提交和标签管理（发布后）
-│   ├── VersionManager.ts # 版本选择和 package.json 更新
-│   └── PublishManager.ts # NPM 发布与临时 .npmrc 处理
+├── commands/
+│   ├── init.ts           # 配置命令
+│   ├── publish.ts        # NPM 发布工作流
+│   └── release.ts        # GitHub Actions 发版工作流
+├── modules/              # 业务逻辑
 ├── utils/                # 工具类
-│   ├── ConfigManager.ts  # 全局配置管理与加密
-│   └── GitHelper.ts      # Git 命令包装工具
-├── types/                # TypeScript 类型定义
-│   └── index.ts          # 共享接口和类型
-└── index.ts              # CLI 入口点与 commander 设置
+└── types/                # TypeScript 定义
 ```
 
-## 高级用法
+## 高级示例
 
-### 版本选择选项
+### 版本管理
 
 ```bash
-# 交互式版本选择（默认）
-qkdpx publish
+# 保持当前版本（仅标签和推送）
+qkdpx release --version none
 
-# 保持当前版本不变
-qkdpx publish --version none
+# 交互式选择和自定义消息
+qkdpx release -m "chore: 准备发版"
 
-# 特定版本升级
-qkdpx publish --version patch    # 1.0.0 → 1.0.1
-qkdpx publish --version minor    # 1.0.0 → 1.1.0
-qkdpx publish --version major    # 1.0.0 → 2.0.0
+# CI 环境中的自动化发版
+qkdpx release --version patch --skip-confirm
 ```
 
-### 提交处理选项
+### 错误恢复
 
-当检测到未提交变更时：
-- **提交**：输入提交消息并在发布前提交
-- **跳过**：不提交变更继续发布
-- **取消**：中止发布流程
-
-### 配置管理
-
-```bash
-# 交互式配置设置
-qkdpx init
-
-# 查看当前配置（令牌已遮罩）
-qkdpx init --show
-
-# 重新配置现有设置
-qkdpx init  # 将显示当前值并允许更新
-```
+两种工作流都包含自动错误恢复：
+- **发布失败**：恢复 package.json 更改
+- **标签冲突**：交互式覆盖提示
+- **Git 错误**：清理回滚到之前状态
 
 ## 故障排除
 
 ### 常见问题
 
-1. **认证错误**
-   ```bash
-   # 重新配置认证
-   qkdpx init
-   ```
+1. **身份验证**：`qkdpx init` 重新配置
+2. **构建失败**：确保 `npm run build` 工作正常
+3. **标签冲突**：选择覆盖或手动删除标签
+4. **Git 问题**：检查 `git config --list`
 
-2. **构建失败**
-   ```bash
-   # 确保构建脚本存在且工作
-   npm run build
-   ```
+### 调试模式
 
-3. **Git 权限问题**
-   ```bash
-   # 检查 git 配置
-   git config --list
-   ```
-
-4. **标签冲突**
-   - 提示时选择"覆盖"
-   - 或手动删除冲突标签：`git tag -d v1.0.0`
-
-### 调试信息
-
-通过设置环境变量启用详细日志：
 ```bash
 DEBUG=qkdpx* qkdpx publish
 ```
 
-## 路线图
-
-### v0.2.0
-- [ ] 支持自定义构建命令配置
-- [ ] 发布前测试执行选项
-- [ ] Monorepo 项目结构支持
-- [ ] 发布历史跟踪
-
-### v0.3.0
-- [ ] 自动 changelog 生成
-- [ ] 约定式提交集成
-- [ ] 多注册表发布支持
-- [ ] 回滚功能
-
-### v1.0.0
-- [ ] 完整插件系统
-- [ ] 配置的 Web UI
-- [ ] CI/CD 集成模板
-- [ ] 全面的文档和示例
-
 ## 贡献
 
 1. Fork 仓库
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交变更 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
+2. 创建功能分支 (`git checkout -b feature/name`)
+3. 提交更改 (`git commit -m 'Add feature'`)
+4. 推送分支 (`git push origin feature/name`)
 5. 打开 Pull Request
 
 ## 许可证
