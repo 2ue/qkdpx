@@ -89,7 +89,7 @@ export class PublishManager {
     );
 
     // Publish to npm using environment variables
-    await execCommandWithEnv('npm', ['publish'], env);
+    await execCommandWithEnv('npm', ['publish', '--access', 'public'], env);
   }
 
   async runBuildIfExists(): Promise<void> {
