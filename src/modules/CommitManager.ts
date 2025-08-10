@@ -106,8 +106,14 @@ export class CommitManager {
         console.log(chalk.green('✅ Pushed to remote successfully'));
       } catch (error) {
         console.log(chalk.yellow('⚠️ Failed to push to remote:'));
-        console.log(chalk.red(error instanceof Error ? error.message : String(error)));
-        console.log(chalk.blue('💡 You can manually push later with: git push origin --tags'));
+        console.log(
+          chalk.red(error instanceof Error ? error.message : String(error))
+        );
+        console.log(
+          chalk.blue(
+            '💡 You can manually push later with: git push origin --tags'
+          )
+        );
       }
     }
   }

@@ -78,14 +78,42 @@ export class GitHelper {
     try {
       await execCommand('git', ['remote', 'get-url', 'origin']);
     } catch (error) {
-      throw new Error('No remote repository configured. Please add a remote repository first:\ngit remote add origin <repository-url>');
+      throw new Error(
+        'No remote repository configured. Please add a remote repository first:\ngit remote add origin <repository-url>'
+      );
     }
 
-    const args = ['push', 'origin'];
-    if (options?.tags) {
-      args.push('--tags');
+    try {
+      const args = ['push', 'origin'];
+      if (options?.tags) {
+        args.push('--tags');
+      }
+      await execCommand('git', args);
+    } catch (error) {
+      // If push fails due to no upstream, try setting upstream
+      if (
+        error instanceof Error &&
+        error.message.includes('no upstream branch')
+      ) {
+        const currentBranch = await execCommand('git', [
+          'branch',
+          '--show-current',
+        ]);
+        await execCommand('git', [
+          'push',
+          '--set-upstream',
+          'origin',
+          currentBranch.trim(),
+        ]);
+
+        // Push tags separately if needed
+        if (options?.tags) {
+          await execCommand('git', ['push', 'origin', '--tags']);
+        }
+      } else {
+        throw error;
+      }
     }
-    await execCommand('git', args);
   }
 
   static async deleteTag(tagName: string): Promise<void> {
@@ -94,7 +122,6 @@ export class GitHelper {
 
   static async tagExists(tagName: string): Promise<boolean> {
     try {
-      await execCommand('git', ['tag', '-l', tagName]);
       const output = await execCommand('git', ['tag', '-l', tagName]);
       return output.trim() === tagName;
     } catch {
