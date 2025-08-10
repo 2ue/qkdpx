@@ -74,7 +74,14 @@ export class GitHelper {
   }
 
   static async push(options?: { tags?: boolean }): Promise<void> {
-    const args = ['push'];
+    // Check if origin remote exists
+    try {
+      await execCommand('git', ['remote', 'get-url', 'origin']);
+    } catch (error) {
+      throw new Error('No remote repository configured. Please add a remote repository first:\ngit remote add origin <repository-url>');
+    }
+
+    const args = ['push', 'origin'];
     if (options?.tags) {
       args.push('--tags');
     }
