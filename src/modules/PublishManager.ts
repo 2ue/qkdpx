@@ -70,26 +70,48 @@ export class PublishManager {
     }
     console.log();
 
-    // Set up npm environment variables instead of creating .npmrc file
-    const env = { ...process.env };
-    env.NPM_CONFIG_REGISTRY = config.registry;
-
-    if (config.authToken) {
-      // Set auth token for the specific registry
-      const registryUrl = new URL(config.registry);
-      const authTokenKey = `//${registryUrl.host}/:_authToken`;
-      env[`npm_config_${authTokenKey.replace(/[/:.]/g, '_')}`] =
-        config.authToken;
+    // Create temporary .npmrc file
+    const npmrcPath = path.join(process.cwd(), '.npmrc');
+    const existingNpmrc = await fs.pathExists(npmrcPath);
+    let originalNpmrcContent = '';
+    
+    if (existingNpmrc) {
+      originalNpmrcContent = await fs.readFile(npmrcPath, 'utf-8');
     }
 
-    console.log(
-      chalk.blue(
-        `📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`
-      )
-    );
+    try {
+      // Generate .npmrc content
+      const registryUrl = new URL(config.registry);
+      const npmrcContent = [
+        `registry=${config.registry}`,
+        config.authToken ? `//${registryUrl.host}/:_authToken=${config.authToken}` : null,
+      ].filter(Boolean).join('\n');
 
-    // Publish to npm using environment variables
-    await execCommandWithEnv('npm', ['publish', '--access', 'public'], env);
+      // Write temporary .npmrc
+      await fs.writeFile(npmrcPath, npmrcContent, 'utf-8');
+
+      console.log(
+        chalk.blue(
+          `📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`
+        )
+      );
+
+      // Publish to npm using .npmrc file
+      await execCommand('npm', ['publish', '--access', 'public']);
+    } finally {
+      // Clean up .npmrc file
+      try {
+        if (existingNpmrc) {
+          // Restore original .npmrc
+          await fs.writeFile(npmrcPath, originalNpmrcContent, 'utf-8');
+        } else {
+          // Remove temporary .npmrc
+          await fs.remove(npmrcPath);
+        }
+      } catch (error) {
+        console.log(chalk.yellow('⚠️ Could not clean up .npmrc file'));
+      }
+    }
   }
 
   async runBuildIfExists(): Promise<void> {
