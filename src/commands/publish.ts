@@ -6,6 +6,7 @@ import { VersionManager } from '../modules/VersionManager.js';
 import { PublishManager } from '../modules/PublishManager.js';
 import chalk from 'chalk';
 import ora from 'ora';
+import inquirer from 'inquirer';
 
 export async function publishCommand(options: PublishOptions) {
   const spinner = ora('Initializing qkdpx...').start();
@@ -37,7 +38,24 @@ export async function publishCommand(options: PublishOptions) {
     const newVersion = await versionManager.bumpVersion(packageInfo, options.version);
     console.log(chalk.green(`🏷️ Version bumped to ${newVersion}`));
 
-    // Step 4: Run remaining tasks with Listr2
+    // Step 4: Final confirmation (interactive) - only if not skipping
+    if (!options.skipConfirm) {
+      const { confirmed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirmed',
+          message: `Ready to publish ${chalk.blue(packageInfo.name)}@${chalk.green(newVersion)}?`,
+          default: true,
+        },
+      ]);
+
+      if (!confirmed) {
+        console.log(chalk.yellow('⚠️  Publishing cancelled by user'));
+        process.exit(0);
+      }
+    }
+
+    // Step 5: Run remaining tasks with Listr2
     const finalTasks = new Listr([
       {
         title: '🔨 Building project',
@@ -56,7 +74,11 @@ export async function publishCommand(options: PublishOptions) {
 
     await finalTasks.run();
 
-    console.log(chalk.green('✅ Package published successfully!'));
+    if (options.dryRun) {
+      console.log(chalk.blue('🎯 Dry run completed - no actual publishing performed'));
+    } else {
+      console.log(chalk.green('✅ Package published successfully!'));
+    }
   } catch (error) {
     spinner.stop();
     console.error(
