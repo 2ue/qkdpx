@@ -45,52 +45,29 @@ export class PublishManager {
     }
     console.log();
 
-    // Create temporary .npmrc file
-    const npmrcPath = path.join(process.cwd(), '.npmrc');
-    const existingNpmrc = await fs.pathExists(npmrcPath);
-    let originalNpmrcContent = '';
+    console.log(
+      chalk.blue(
+        `📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`
+      )
+    );
 
-    if (existingNpmrc) {
-      originalNpmrcContent = await fs.readFile(npmrcPath, 'utf-8');
-    }
+    // Build npm publish command with CLI parameters
+    const publishArgs = [
+      'publish',
+      `--registry=${config.registry}`,
+      '--access=public',
+    ];
 
-    try {
-      // Generate .npmrc content
+    // Add auth token parameter if available
+    if (config.authToken) {
       const registryUrl = new URL(config.registry);
-      const npmrcContent = [
-        `registry=${config.registry}`,
-        config.authToken
-          ? `//${registryUrl.host}/:_authToken=${config.authToken}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      // Write temporary .npmrc
-      await fs.writeFile(npmrcPath, npmrcContent, 'utf-8');
-
-      console.log(
-        chalk.blue(
-          `📦 Publishing ${packageInfo.name}@${version} to ${config.registry}...`
-        )
+      publishArgs.push(
+        `--//${registryUrl.host}/:_authToken=${config.authToken}`
       );
-
-      // Publish to npm using .npmrc file
-      await execCommand('npm', ['publish', '--access', 'public']);
-    } finally {
-      // Clean up .npmrc file
-      try {
-        if (existingNpmrc) {
-          // Restore original .npmrc
-          await fs.writeFile(npmrcPath, originalNpmrcContent, 'utf-8');
-        } else {
-          // Remove temporary .npmrc
-          await fs.remove(npmrcPath);
-        }
-      } catch (error) {
-        console.log(chalk.yellow('⚠️ Could not clean up .npmrc file'));
-      }
     }
+
+    // Publish to npm using command line parameters
+    await execCommand('npm', publishArgs);
   }
 
   async runBuildIfExists(): Promise<void> {
